@@ -1,0 +1,1036 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sude Hoca Yollarda</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#050010 url('bg.webp') center center / cover no-repeat fixed; display:flex; justify-content:center; align-items:center; min-height:100vh; font-family:'Arial Black',sans-serif; }
+#gameContainer { position:relative; width:400px; height:700px; }
+canvas { display:block; border:2px solid #00e5ff; box-shadow:0 0 25px #00e5ff,0 0 55px #ff0088,0 0 100px rgba(0,229,255,0.3); border-radius:8px; cursor:default; }
+#ui { position:absolute; top:10px; left:0; width:100%; display:flex; justify-content:space-between; padding:0 14px; pointer-events:none; z-index:10; }
+.stat { color:#00e5ff; font-size:13px; font-weight:bold; text-shadow:0 0 8px #00e5ff; letter-spacing:1px; }
+.stat.hit { color:#ff5500; text-shadow:0 0 8px #ff5500; }
+
+/* ── Overlay / Menü ── */
+#overlay {
+  position:absolute; inset:0; z-index:20; border-radius:6px;
+  background:linear-gradient(160deg,rgba(4,0,16,0.82) 0%,rgba(0,6,4,0.82) 100%);
+  display:flex; flex-direction:column; justify-content:center; align-items:center;
+  gap:0;
+  border:1px solid rgba(0,229,255,0.14);
+  box-shadow:inset 0 0 90px rgba(255,0,136,0.07),inset 0 0 40px rgba(0,229,255,0.04);
+}
+#overlay::before {
+  content:''; position:absolute; inset:0; border-radius:6px; pointer-events:none; z-index:0;
+  background:repeating-linear-gradient(0deg,transparent 0px,transparent 3px,rgba(0,0,0,0.07) 3px,rgba(0,0,0,0.07) 4px);
+  animation:scanMove 8s linear infinite;
+}
+#overlay > * { position:relative; z-index:1; }
+@keyframes scanMove { from{background-position:0 0;} to{background-position:0 -40px;} }
+
+.game-title {
+  font-size:40px; font-weight:900; color:#fff; text-align:center;
+  line-height:1.05; letter-spacing:4px; margin-bottom:6px;
+  text-shadow:0 0 12px #ff0099,0 0 30px #ff0099,0 0 60px #ff0099,0 0 100px rgba(255,0,153,0.4);
+  animation:titlePulse 2.2s ease-in-out infinite;
+}
+.game-title .acc { color:#ffee00; text-shadow:0 0 12px #ffaa00,0 0 32px #ffaa00,0 0 65px #ff6600; }
+@keyframes titlePulse {
+  0%,100%{ opacity:1; text-shadow:0 0 12px #ff0099,0 0 30px #ff0099,0 0 60px #ff0099; }
+  50%{ opacity:.88; text-shadow:0 0 18px #ff44bb,0 0 50px #ff44bb,0 0 90px rgba(255,68,187,0.5); }
+}
+
+.tagline { color:#00ffff; font-size:14px; font-weight:bold; letter-spacing:2px; text-shadow:0 0 12px #00ffff,0 0 24px #00ffff; margin-bottom:18px; }
+
+.inst-card {
+  background:rgba(0,6,28,0.78); border:1px solid rgba(0,229,255,0.22);
+  border-radius:14px; padding:14px 22px; margin-bottom:20px; width:310px;
+  box-shadow:0 0 18px rgba(0,229,255,0.08);
+}
+.inst-row { color:#aaddff; font-size:12px; font-weight:bold; padding:3px 0; text-align:center; }
+.inst-row b { color:#fff; text-shadow:0 0 6px #fff; }
+.inst-row.warn { color:#ff9955; font-size:11px; text-shadow:0 0 8px #ff6600; margin-top:5px; padding-top:7px; border-top:1px solid rgba(255,80,0,.22); }
+
+.btn {
+  border:none; color:#000; font-size:17px; font-weight:900;
+  padding:14px 46px; border-radius:50px; cursor:pointer; letter-spacing:2px;
+}
+.btn-start {
+  background:linear-gradient(135deg,#ff0099,#ff6600);
+  box-shadow:0 0 35px #ff0099,0 0 70px rgba(255,0,153,.35),0 4px 15px rgba(0,0,0,.5);
+  animation:btnPulse 1.6s ease-in-out infinite;
+}
+@keyframes btnPulse {
+  0%,100%{ box-shadow:0 0 35px #ff0099,0 0 70px rgba(255,0,153,.35),0 4px 15px rgba(0,0,0,.5); transform:scale(1); }
+  50%    { box-shadow:0 0 55px #ff6600,0 0 110px rgba(255,100,0,.45),0 4px 20px rgba(0,0,0,.5); transform:scale(1.05); }
+}
+.btn-win  { background:linear-gradient(135deg,#00ff55,#00ffdd); box-shadow:0 0 25px #00ff55,0 4px 15px rgba(0,0,0,.5); }
+.btn-lose { background:linear-gradient(135deg,#ff3366,#ffbb00); box-shadow:0 0 25px #ff3366,0 4px 15px rgba(0,0,0,.5); }
+.btn-menu { background:linear-gradient(135deg,#1a2244,#2a3a55); color:#aaddff !important; box-shadow:0 0 12px #2244aa,0 4px 10px rgba(0,0,0,.5); font-size:13px !important; padding:10px 28px !important; letter-spacing:1px; }
+.v-tag { color:rgba(100,180,230,.5); font-size:11px; margin-top:14px; letter-spacing:2px; text-transform:uppercase; text-shadow:0 0 8px rgba(0,200,255,0.3); }
+.result-sub { color:#00ffee; font-size:13px; text-shadow:0 0 10px #00ffee; text-align:center; margin-bottom:18px; line-height:1.9; }
+</style>
+</head>
+<body>
+<div id="gameContainer">
+  <canvas id="c" width="400" height="700"></canvas>
+  <div id="ui">
+    <span class="stat hit" id="hitEl">ÇARPMA: 0</span>
+    <span class="stat"     id="speedEl">HIZ: 1.0x</span>
+  </div>
+  <div id="overlay">
+    <div class="game-title">SUDE HOCA<br><span class="acc">YOLLARDA</span> 🚗</div>
+    <div class="tagline">⏱ Derse geç kalmadan yetiş!</div>
+    <div class="inst-card">
+      <div class="inst-row"><b>← → / A D</b> &nbsp;→&nbsp; Şerit değiştir</div>
+      <div class="inst-row"><b>↑ / W</b> &nbsp;Hızlan &nbsp;|&nbsp; <b>↓ / S</b> &nbsp;Yavaşla</div>
+      <div class="inst-row warn">⚠ Çivi, çukur ve yayalara dikkat! Özür dilemeyi unutma!</div>
+    </div>
+    <button class="btn btn-start" onclick="startGame()">🚦 OYUNA BAŞLA!</button>
+    <div class="v-tag">60 Saniye · 5 Şerit · Kaotik Trafik</div>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx    = canvas.getContext('2d');
+const W = 400, H = 700;
+
+// ─── Sabitler ────────────────────────────────────────────
+const LANE_COUNT = 5;
+const ROAD_LEFT  = 40;
+const ROAD_RIGHT = 360;
+const ROAD_W     = ROAD_RIGHT - ROAD_LEFT;
+const LANE_W     = ROAD_W / LANE_COUNT;
+const LANES      = Array.from({length:LANE_COUNT},(_,i)=>ROAD_LEFT+LANE_W*i+LANE_W/2);
+const TOTAL_DIST = 1500;
+const TOTAL_TIME = 60*60;
+const HUD_Y      = 635;
+const PENALTY_SECS    = 5;
+const MAX_OBSTACLES   = 14;  // ekrandaki max aktif (çarpmamış) NPC araç
+const CRASH_BLINK_START = 60; // kaza sonrası yanıp-sönme başlangıcı (1 sn = 60 frame)
+const CRASH_REMOVE    = 92;   // bu frame'de araç silinir (~1.5 sn)
+
+// ─── Renk Paleti (sabah telaşı + kaotik şehir) ───────────
+const PALETTE = {
+  bgTop:    '#07001e',
+  bgBot:    '#000d06',
+  road1:    '#0b0b1e',
+  road2:    '#111128',
+  roadEdge: '#00ffff',
+  laneLine: '#ffaa00',
+  player:   '#ff00dd',
+  speedLow: '#ffbb00',
+  speedHi:  '#ff1100',
+  hudLine:  '#00ffff',
+  skyMid:   '#120030',
+  skyStars: '#1a0040',
+};
+
+// ─── Durum ───────────────────────────────────────────────
+let gameRunning = false;
+let distLeft=TOTAL_DIST, timeLeft=TOTAL_TIME;
+let baseSpeed=4, speedMult=1, targetMult=1;
+let dashOffset=0, frameCount=0, hitCount=0;
+let hitTimer=0, hitFlash=0, crashTexts=[];
+let speedLines=[];
+let _stars=null; // yıldız önbelleği — idle+game döngüsünden önce tanımlanmalı
+let idleLoopId=0;   // idle döngü kimliği — eski döngüleri durdurmak için
+const mainMenuHTML=document.getElementById('overlay').innerHTML; // ana menü içeriği
+
+// Sigara Uyarısı Pop-up
+const sigaraWarn={active:false,shown:false,btnRect:null};
+
+// Mini oyun 1 — Lastik
+const miniGame={active:false,presses:0,target:10,shakeTimer:0,hitHazardIdx:-1};
+
+// Mini oyun 2 — Özür Sorusu (kara mizah versiyonu)
+const APOLOGY_QUIZZES=[
+  {correct:"I'm terribly sorry!",      wrong:["Doğal seçilim, anlarsın değil mi?",   "Beyaz Polo'm sana değdi, tazminat iste!"]},
+  {correct:"Please forgive me!",       wrong:["Zaten yaşamak için fazla yavaştın.",   "Ben İngilizce öğretmeniyim, I am sorry! 😏"]},
+  {correct:"I do apologize!",          wrong:["Sigortam var, avukatımı ara.",         "GTA'da daha kötüsünü yaptım, devam!"]},
+  {correct:"I'm so sorry about that!", wrong:["Araba tamam mı? Sen de tamam mısın?",  "Okula geç kalıyorum, şikâyetini yaz!"]},
+  {correct:"Pardon me, I'm sorry!",    wrong:["Darwin'e sorsan bana hak verirdi.",    "Vücut dili ile özür: *gaz yapar*"]},
+  {correct:"I sincerely apologize!",   wrong:["Hız limitini sen mi koydun?",          "Bu cadde araçlara ayrılmış, kaldırımda yürü!"]},
+  {correct:"My deepest apologies!",    wrong:["Refleks testini geçemedin, vay be.",   "Aman, boyama değmedi mi hiç?"]},
+  {correct:"I beg your pardon!",       wrong:["Fren yapmazdım, sürtünme düşüktü.",    "Zil çaldı, vakti yok, başka sefer!"]},
+  {correct:"Excuse me, I'm so sorry!", wrong:["Tek öğretmenim ben, affet şimdi.",     "Sigorta şirketi halleder, çekilin!"]},
+];
+const apologyQuiz={active:false,options:[],selectedIdx:-1,resultTimer:0,resultOk:false,pedIdx:-1,penaltyText:0};
+let quizBtnRects=[];
+
+// Oyuncu
+const player={lane:2,x:LANES[2],y:H-145,w:40,h:78,switching:false,switchProgress:0,switchFrom:2,color:'#f0f0ea',glowColor:'#aaccee'};
+
+// Engeller
+let obstacles=[],obstacleTimer=0,obstacleInterval=52;
+let hazards=[],hazardTimer=0,hazardInterval=280;
+let pedestrians=[],pedTimer=0,pedInterval=320;
+
+// Şehir binaları (başlangıçta üret)
+let buildings=[];
+const PED_COLORS=['#ff3366','#33ff99','#ffaa00','#00ccff','#ff66ff','#aaff00','#ff6600'];
+const CAR_COLORS=['#ff0033','#ff6600','#ffdd00','#00ff55','#00ffcc','#00aaff','#cc00ff','#ff0099','#ccff00','#ff4400','#00e5ff','#ff44ff'].map(c=>({body:c,glow:c}));
+const CAR_TYPES=[
+  {wMult:.82,hMult:.78,speedBonus:0,  label:''},
+  {wMult:1.0,hMult:1.0,speedBonus:0,  label:''},
+  {wMult:1.0,hMult:1.0,speedBonus:3.5,label:''},
+  {wMult:1.12,hMult:1.4,speedBonus:-1.5,label:'TIR'},
+  {wMult:.90,hMult:1.15,speedBonus:2.0,label:''},
+];
+
+// ─── Bina üretimi ─────────────────────────────────────────
+const NEON_SIGN_COLORS=['#ff0088','#00ffff','#ffaa00','#00ff55','#ff4400','#cc00ff','#ffee00'];
+function generateBuildings(){
+  buildings=[];
+  const addSide=(x0,x1)=>{
+    let bx=x0;
+    while(bx<x1){
+      const bw=10+Math.random()*24, bh=55+Math.random()*340;
+      const by=H-bh, wins=[];
+      for(let wy=by+8;wy<H-25;wy+=16)
+        for(let wx=bx+3;wx<bx+bw-3;wx+=8)
+          wins.push({x:wx,y:wy,lit:Math.random()<.62,warm:Math.random()<.5,col:Math.random()<.12?NEON_SIGN_COLORS[Math.floor(Math.random()*NEON_SIGN_COLORS.length)]:null});
+      // antenna spire on tall buildings
+      const hasAntenna=bh>160&&Math.random()<.65;
+      const antennaH=hasAntenna?12+Math.random()*28:0;
+      // neon sign strip on some buildings
+      const hasNeon=Math.random()<.35;
+      const neonCol=NEON_SIGN_COLORS[Math.floor(Math.random()*NEON_SIGN_COLORS.length)];
+      buildings.push({x:bx,y:by,w:bw,h:bh,wins,antennaH,hasNeon,neonCol});
+      bx+=bw+2+Math.random()*6;
+    }
+  };
+  addSide(0,ROAD_LEFT-2);
+  addSide(ROAD_RIGHT+2,W);
+}
+generateBuildings();
+
+// ─── Spawn fonksiyonları ──────────────────────────────────
+function randCar(){const r=Math.random();if(r<.10)return CAR_TYPES[3];if(r<.25)return CAR_TYPES[0];if(r<.40)return CAR_TYPES[2];if(r<.55)return CAR_TYPES[4];return CAR_TYPES[1];}
+function spawnOne(lane){const col=CAR_COLORS[Math.floor(Math.random()*CAR_COLORS.length)],t=randCar();obstacles.push({lane,x:LANES[lane],y:-(80+Math.random()*40),w:Math.round(40*t.wMult),h:Math.round(74*t.hMult),color:col.body,glow:col.glow,ownSpeed:Math.max(.5,1.5+Math.random()*6+t.speedBonus),label:t.label,crashTimer:0});}
+function spawnBurst(){
+  const active=obstacles.filter(o=>o.crashTimer===0).length;
+  if(active>=MAX_OBSTACLES)return;
+  const n=Math.random()<.25?3:Math.random()<.45?2:1;
+  const used=new Set();
+  for(let i=0;i<n;i++){let lane,t=0;do{lane=Math.floor(Math.random()*LANE_COUNT);t++;}while(used.has(lane)&&t<10);used.add(lane);spawnOne(lane);}
+  ensureOpenLane();
+}
+function spawnHazard(){const lane=Math.floor(Math.random()*LANE_COUNT),type=Math.random()<.5?'nail':'pothole';hazards.push({type,lane,x:LANES[lane],y:-30,w:type==='nail'?28:44,h:type==='nail'?18:22,animFrame:0});}
+function spawnPedestrian(){const fromLeft=Math.random()<.5,y=120+Math.random()*380,col=PED_COLORS[Math.floor(Math.random()*PED_COLORS.length)];pedestrians.push({x:fromLeft?ROAD_LEFT-20:ROAD_RIGHT+20,y,dir:fromLeft?1:-1,speed:1.2+Math.random()*1.4,w:20,h:36,walkFrame:0,color:col});}
+
+// ─── Giriş ───────────────────────────────────────────────
+const keys={};
+window.addEventListener('keydown',e=>{
+  if(e.code==='Escape'){e.preventDefault();goToMainMenu();return;}
+  if(sigaraWarn.active){sigaraWarn.active=false;speedMult=0.4;targetMult=1;return;}
+  if(e.code==='Space'&&!keys['Space']&&miniGame.active){miniGame.presses++;miniGame.shakeTimer=10;if(miniGame.presses>=miniGame.target)completeMiniGame();}
+  if(apologyQuiz.active&&apologyQuiz.resultTimer===0){if(e.code==='Digit1'||e.code==='Numpad1')selectApologyOption(0);if(e.code==='Digit2'||e.code==='Numpad2')selectApologyOption(1);if(e.code==='Digit3'||e.code==='Numpad3')selectApologyOption(2);}
+  if(keys[e.code])return; keys[e.code]=true;
+  const anyPopup=miniGame.active||apologyQuiz.active;
+  if(!gameRunning||anyPopup)return;
+  if(hitTimer>50)return;
+  if((e.code==='ArrowLeft'||e.code==='KeyA')&&!player.switching)moveLane(-1);
+  if((e.code==='ArrowRight'||e.code==='KeyD')&&!player.switching)moveLane(1);
+  if(e.code==='ArrowUp'||e.code==='KeyW')targetMult=Math.min(targetMult+0.3,3.0);
+  if(e.code==='ArrowDown'||e.code==='KeyS')targetMult=Math.max(targetMult-0.3,0.5);
+});
+window.addEventListener('keyup',e=>{keys[e.code]=false;});
+canvas.addEventListener('click',e=>{
+  const r=canvas.getBoundingClientRect();
+  const mx=(e.clientX-r.left)*(W/r.width),my=(e.clientY-r.top)*(H/r.height);
+  if(sigaraWarn.active&&sigaraWarn.btnRect){
+    const b=sigaraWarn.btnRect;
+    if(mx>=b.x&&mx<=b.x+b.w&&my>=b.y&&my<=b.y+b.h){sigaraWarn.active=false;speedMult=0.4;targetMult=1;return;}
+  }
+  if(!apologyQuiz.active||apologyQuiz.resultTimer>0)return;
+  for(let i=0;i<quizBtnRects.length;i++){const b=quizBtnRects[i];if(mx>=b.x&&mx<=b.x+b.w&&my>=b.y&&my<=b.y+b.h){selectApologyOption(i);break;}}
+});
+
+function moveLane(dir){const nl=player.lane+dir;if(nl<0||nl>=LANE_COUNT)return;player.switchFrom=player.lane;player.lane=nl;player.switching=true;player.switchProgress=0;}
+
+// ─── Özür Quiz ───────────────────────────────────────────
+function selectApologyOption(idx){
+  if(apologyQuiz.resultTimer>0)return;
+  apologyQuiz.selectedIdx=idx;
+  const ok=apologyQuiz.options[idx].isCorrect;
+  apologyQuiz.resultOk=ok; apologyQuiz.resultTimer=ok?50:45;
+  if(!ok){timeLeft=Math.max(0,timeLeft-PENALTY_SECS*60);apologyQuiz.penaltyText=80;if(timeLeft<=0)endGame(false);}
+}
+function finishApologyQuiz(){apologyQuiz.active=false;if(apologyQuiz.pedIdx>=0&&apologyQuiz.pedIdx<pedestrians.length)pedestrians.splice(apologyQuiz.pedIdx,1);apologyQuiz.pedIdx=-1;hitTimer=50;speedMult=0.4;targetMult=1.0;}
+function triggerApologyQuiz(pedIdx){
+  const q=APOLOGY_QUIZZES[Math.floor(Math.random()*APOLOGY_QUIZZES.length)];
+  const opts=[{text:q.correct,isCorrect:true},{text:q.wrong[0],isCorrect:false},{text:q.wrong[1],isCorrect:false}];
+  for(let i=opts.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[opts[i],opts[j]]=[opts[j],opts[i]];}
+  apologyQuiz.active=true;apologyQuiz.options=opts;apologyQuiz.selectedIdx=-1;
+  apologyQuiz.resultTimer=0;apologyQuiz.resultOk=false;apologyQuiz.pedIdx=pedIdx;apologyQuiz.penaltyText=0;
+  speedMult=0;targetMult=1;
+}
+
+// ─── Oyun akışı ──────────────────────────────────────────
+function startGame(){
+  document.getElementById('overlay').style.display='none';
+  idleMode=false;
+  distLeft=TOTAL_DIST;timeLeft=TOTAL_TIME;
+  speedMult=1;targetMult=1;baseSpeed=4;
+  frameCount=0;obstacleTimer=0;obstacleInterval=52;
+  hazardTimer=0;hazardInterval=280;pedTimer=0;pedInterval=320;
+  obstacles=[];hazards=[];pedestrians=[];hitCount=0;
+  hitTimer=0;hitFlash=0;crashTexts=[];speedLines=[];
+  miniGame.active=false;miniGame.presses=0;miniGame.hitHazardIdx=-1;
+  apologyQuiz.active=false;apologyQuiz.resultTimer=0;apologyQuiz.penaltyText=0;apologyQuiz.pedIdx=-1;
+  sigaraWarn.active=false;sigaraWarn.shown=false;sigaraWarn.btnRect=null;
+  player.lane=2;player.x=LANES[2];player.switching=false;
+  generateBuildings();
+  gameRunning=true;
+  requestAnimationFrame(loop);
+}
+
+function loop(){if(!gameRunning)return;update();draw();requestAnimationFrame(loop);}
+
+function update(){
+  frameCount++;
+  // 10. saniyede (600 frame) sigara uyarısı — henüz gösterilmediyse
+  if(!sigaraWarn.shown&&frameCount===600){sigaraWarn.active=true;sigaraWarn.shown=true;speedMult=0;}
+  const anyPopup=miniGame.active||apologyQuiz.active||sigaraWarn.active;
+
+  if(anyPopup){
+    timeLeft=Math.max(0,timeLeft-1);
+    if(timeLeft<=0){endGame(false);return;}
+    if(miniGame.shakeTimer>0)miniGame.shakeTimer--;
+    if(apologyQuiz.penaltyText>0)apologyQuiz.penaltyText--;
+    if(apologyQuiz.active&&apologyQuiz.resultTimer>0){
+      apologyQuiz.resultTimer--;
+      if(apologyQuiz.resultTimer===0){if(apologyQuiz.resultOk)finishApologyQuiz();else apologyQuiz.selectedIdx=-1;}
+    }
+    crashTexts=crashTexts.filter(t=>t.alpha>.02);
+    for(const t of crashTexts){t.y-=.4;t.alpha*=.985;}
+    for(const h of hazards)h.animFrame++;
+    for(const p of pedestrians)p.walkFrame++;
+    document.getElementById('hitEl').textContent='ÇARPMA: '+hitCount;
+    document.getElementById('speedEl').textContent='HIZ: 0.0x';
+    return;
+  }
+
+  if(hitTimer>0){hitTimer--;speedMult=lerp(speedMult,0,.22);if(hitTimer===0){speedMult=.3;targetMult=Math.max(targetMult,.8);}}
+  else speedMult=lerp(speedMult,targetMult,.07);
+
+  const spd=baseSpeed*Math.max(0,speedMult);
+  dashOffset=(dashOffset+spd)%60;
+  if(hitFlash>0)hitFlash--;
+  crashTexts=crashTexts.filter(t=>t.alpha>.02);
+  for(const t of crashTexts){t.y-=1.4;t.alpha*=.965;}
+
+  distLeft=Math.max(0,distLeft-spd*.095);
+  timeLeft=Math.max(0,timeLeft-1);
+  if(distLeft<=0){endGame(true);return;}
+  if(timeLeft<=0){endGame(false);return;}
+
+  if(player.switching){player.switchProgress+=.12;if(player.switchProgress>=1){player.switchProgress=1;player.switching=false;}player.x=lerp(LANES[player.switchFrom],LANES[player.lane],easeInOut(player.switchProgress));}
+  else player.x=LANES[player.lane];
+
+  obstacleTimer++;if(obstacleTimer>=obstacleInterval){obstacleTimer=0;obstacleInterval=Math.max(16,obstacleInterval-.6);spawnBurst();}
+  for(const o of obstacles){
+    if(o.crashTimer>0){o.crashTimer++;o.y+=spd*.25;}  // kazalı araç: yavaş kayar
+    else{o.y+=spd+o.ownSpeed;}
+  }
+  obstacles=obstacles.filter(o=>o.y<H+140&&o.crashTimer<CRASH_REMOVE);
+
+  hazardTimer++;if(hazardTimer>=hazardInterval){hazardTimer=0;hazardInterval=Math.max(140,hazardInterval-5);spawnHazard();}
+  for(const h of hazards){h.y+=spd;h.animFrame++;}
+  hazards=hazards.filter(h=>h.y<H+60);
+
+  pedTimer++;if(pedTimer>=pedInterval){pedTimer=0;pedInterval=Math.max(180,pedInterval-4);spawnPedestrian();}
+  for(const p of pedestrians){p.x+=p.dir*p.speed;p.y+=spd*.9;p.walkFrame++;}
+  pedestrians=pedestrians.filter(p=>p.x>ROAD_LEFT-80&&p.x<ROAD_RIGHT+80&&p.y<H+60);
+
+  // Hız çizgileri
+  if(speedMult>1.25){
+    const ity=(speedMult-1.25)/1.75;
+    if(Math.random()<ity*.55){
+      const mk=(side,bx,ex)=>speedLines.push({x:bx+Math.random()*(ex-bx),y:-10,len:35+Math.random()*90*ity,w:1+Math.random()*1.5,alpha:.55+Math.random()*.45,side});
+      mk('L',0,ROAD_LEFT-4);
+      mk('R',ROAD_RIGHT+4,W);
+    }
+  }
+  for(const l of speedLines){l.y+=spd*2.2;l.alpha-=.022;}
+  speedLines=speedLines.filter(l=>l.alpha>0&&l.y<H+150);
+
+  if(hitTimer===0)for(const o of obstacles){if(o.crashTimer===0&&collides(player,o)){triggerHit(o);break;}}
+  for(let i=0;i<hazards.length;i++)if(collidesHazard(player,hazards[i])){triggerHazard(i);break;}
+  for(let i=0;i<pedestrians.length;i++)if(collidesPed(player,pedestrians[i])){triggerApologyQuiz(i);break;}
+
+  for(const p of roadParticles){p.y+=spd*.4;if(p.y>H){p.y=-10;p.x=ROAD_LEFT+Math.random()*ROAD_W;}}
+  if(frameCount%550===0)baseSpeed=Math.min(baseSpeed+.5,14);
+
+  document.getElementById('hitEl').textContent='ÇARPMA: '+hitCount;
+  document.getElementById('speedEl').textContent='HIZ: '+speedMult.toFixed(1)+'x';
+}
+
+function triggerHit(o){hitCount++;hitTimer=85;hitFlash=22;speedMult=0;if(o){o.crashTimer=1;o.ownSpeed=0;}for(let i=0;i<2;i++)crashTexts.push({x:player.x+(Math.random()*60-30),y:player.y-20-i*30,alpha:1});}
+function triggerHazard(idx){miniGame.active=true;miniGame.presses=0;miniGame.shakeTimer=0;miniGame.hitHazardIdx=idx;speedMult=0;targetMult=1;}
+function completeMiniGame(){miniGame.active=false;if(miniGame.hitHazardIdx>=0&&miniGame.hitHazardIdx<hazards.length)hazards.splice(miniGame.hitHazardIdx,1);miniGame.hitHazardIdx=-1;miniGame.presses=0;hitTimer=50;speedMult=.4;targetMult=1.0;}
+
+function endGame(won){
+  gameRunning=false;
+  const ov=document.getElementById('overlay');
+  const secs=Math.ceil(timeLeft/60),dist=Math.ceil(distLeft);
+  const menuBtn='<button class="btn btn-menu" onclick="goToMainMenu()" style="margin-top:10px">🏠 Ana Menü</button>';
+  if(won)ov.innerHTML=`<div class="game-title" style="color:#00ff88;text-shadow:0 0 20px #00ff88,0 0 50px #00ff88;font-size:28px">TEBRİKLER! 🎉</div><div class="tagline" style="color:#ffdd00;font-size:15px">Fındık Hoca Derse Yetişti! 🏫</div><div class="result-sub">Kalan süre: <b>${secs}</b> saniye<br>Toplam çarpma: <b>${hitCount}</b></div><button class="btn btn-win" onclick="startGame()">TEKRAR OYNA</button>${menuBtn}`;
+  else ov.innerHTML=`<div class="game-title" style="color:#ff3366;text-shadow:0 0 20px #ff3366,0 0 50px #ff3366;font-size:26px">FINDIK HOCA GEÇ KALDI! 😤</div><div class="tagline" style="color:#ff8844;font-size:13px">Müdür Çok Kızgın!</div><div class="result-sub" style="color:#ff9966">Okula kalan: <b>${dist}m</b><br>Çarpma: <b>${hitCount}</b></div><button class="btn btn-lose" onclick="startGame()">TEKRAR DENE</button>${menuBtn}`;
+  ov.style.display='flex';
+}
+
+// ─── Ana Menü & Garanti Geçiş ────────────────────────────
+function goToMainMenu(){
+  gameRunning=false;
+  miniGame.active=false;apologyQuiz.active=false;
+  obstacles=[];hazards=[];pedestrians=[];crashTexts=[];speedLines=[];
+  const ov=document.getElementById('overlay');
+  ov.innerHTML=mainMenuHTML;
+  ov.style.display='flex';
+  idleMode=true;
+  idleLoopId++;
+  runIdleLoop(idleLoopId);
+}
+
+function ensureOpenLane(){
+  const dangerTop=80,dangerBot=H-80;
+  const blocked=new Set();
+  for(const o of obstacles){
+    if(o.crashTimer>0)continue;
+    if(o.y>dangerTop&&o.y<dangerBot)blocked.add(o.lane);
+  }
+  if(blocked.size<LANE_COUNT)return; // en az 1 şerit zaten açık
+  // Tüm şeritler bloke — rastgele 1 tanesini temizle
+  const laneToOpen=Math.floor(Math.random()*LANE_COUNT);
+  obstacles=obstacles.filter(o=>!(o.lane===laneToOpen&&o.crashTimer===0&&o.y>dangerTop&&o.y<dangerBot));
+}
+
+// ─── Yol parçacıkları ────────────────────────────────────
+const roadParticles=Array.from({length:22},()=>({x:ROAD_LEFT+Math.random()*ROAD_W,y:Math.random()*H}));
+
+// ─── İdle Animasyonu (menü arkası) ───────────────────────
+let idleMode=true;
+let idleOffset=0;
+function runIdleLoop(id){
+  if(!idleMode||id!==idleLoopId)return;
+  idleOffset=(idleOffset+1.4)%60;
+  drawIdleFrame();
+  requestAnimationFrame(()=>runIdleLoop(id));
+}
+runIdleLoop(idleLoopId);
+
+function drawIdleFrame(){
+  ctx.clearRect(0,0,W,H);
+  // Arka plan
+  const bg=ctx.createLinearGradient(0,0,0,H);
+  bg.addColorStop(0,PALETTE.bgTop); bg.addColorStop(.38,PALETTE.skyMid); bg.addColorStop(1,PALETTE.bgBot);
+  ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
+  drawBuildingSilhouettes();
+  // Yol
+  const rg=ctx.createLinearGradient(ROAD_LEFT,0,ROAD_RIGHT,0);
+  rg.addColorStop(0,PALETTE.road1); rg.addColorStop(.5,PALETTE.road2); rg.addColorStop(1,PALETTE.road1);
+  ctx.fillStyle=rg; ctx.fillRect(ROAD_LEFT,0,ROAD_W,H);
+  neonLine(ROAD_LEFT,0,ROAD_LEFT,H,PALETTE.roadEdge,3,20);
+  neonLine(ROAD_RIGHT,0,ROAD_RIGHT,H,PALETTE.roadEdge,3,20);
+  ctx.save(); ctx.strokeStyle=PALETTE.laneLine; ctx.lineWidth=2; ctx.shadowColor=PALETTE.laneLine; ctx.shadowBlur=10;
+  ctx.setLineDash([28,32]); ctx.lineDashOffset=-idleOffset;
+  for(let i=1;i<LANE_COUNT;i++){const lx=ROAD_LEFT+LANE_W*i;ctx.beginPath();ctx.moveTo(lx,0);ctx.lineTo(lx,H);ctx.stroke();}
+  ctx.restore();
+  // Oyuncu araç (nabız — Polo)
+  const pulse=.85+.15*Math.sin(Date.now()*.003);
+  ctx.save(); ctx.shadowColor='#aaccee'; ctx.shadowBlur=14+12*pulse;
+  drawPoloCar(LANES[2],H-145,false);
+  ctx.restore();
+}
+
+// ─── Ana Çizim ───────────────────────────────────────────
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  drawBackground(); drawRoad();
+  drawHazards(); drawPedestrians(); drawObstacles(); drawPlayer();
+  drawSpeedEffect();
+  drawTopDistBar(); drawHUD(); drawCrashTexts(); drawHitFlash();
+  if(miniGame.active)    drawMiniGame();
+  if(apologyQuiz.active) drawApologyQuiz();
+  if(sigaraWarn.active)  drawSigaraWarn();
+}
+
+function drawBackground(){
+  const g=ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,PALETTE.bgTop);
+  g.addColorStop(.38,PALETTE.skyMid);
+  g.addColorStop(1,PALETTE.bgBot);
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+
+  // Screen shake at high speed
+  if(speedMult>2.4&&!miniGame.active&&!apologyQuiz.active){
+    const shakeAmt=(speedMult-2.4)/0.6*3.5;
+    const sx=(Math.random()*2-1)*shakeAmt, sy=(Math.random()*2-1)*shakeAmt;
+    ctx.save(); ctx.translate(sx,sy);
+    drawBuildingSilhouettes();
+    ctx.restore();
+  } else {
+    drawBuildingSilhouettes();
+  }
+
+  ctx.save(); ctx.globalAlpha=.12; ctx.fillStyle='#fff';
+  for(const p of roadParticles)ctx.fillRect(p.x,p.y,2,2);
+  ctx.restore();
+}
+
+function getStars(){
+  if(_stars)return _stars;
+  _stars=Array.from({length:55},()=>({x:Math.random()*W,y:Math.random()*H*.55,r:.5+Math.random()*1.2,a:.3+Math.random()*.7,t:Math.random()*Math.PI*2}));
+  return _stars;
+}
+function drawBuildingSilhouettes(){
+  ctx.save();
+  // Stars
+  const stars=getStars();
+  for(const s of stars){
+    const tw=(Math.sin(s.t+frameCount*.012)*.5+.5);
+    ctx.globalAlpha=s.a*(0.5+0.5*tw); ctx.fillStyle='#ffffff';
+    ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,Math.PI*2); ctx.fill();
+  }
+  ctx.globalAlpha=1;
+  // Moon
+  ctx.fillStyle='#fff8e0'; ctx.shadowColor='#ffeeaa'; ctx.shadowBlur=18;
+  ctx.beginPath(); ctx.arc(W*.14,55,11,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle=PALETTE.bgTop; ctx.shadowBlur=0;
+  ctx.beginPath(); ctx.arc(W*.14+5,51,9,0,Math.PI*2); ctx.fill();
+  ctx.shadowBlur=0;
+
+  for(const b of buildings){
+    // Building body
+    const bg=ctx.createLinearGradient(b.x,b.y,b.x+b.w,b.y);
+    bg.addColorStop(0,'#060410'); bg.addColorStop(.5,'#08061a'); bg.addColorStop(1,'#060410');
+    ctx.fillStyle=bg; ctx.shadowBlur=0;
+    ctx.fillRect(b.x,b.y,b.w,b.h);
+    ctx.strokeStyle='#14102a'; ctx.lineWidth=.8; ctx.strokeRect(b.x,b.y,b.w,b.h);
+
+    // Windows
+    for(const w of b.wins){
+      if(!w.lit)continue;
+      const wc=w.col||(w.warm?'#ffcc44':'#4499ff');
+      ctx.fillStyle=wc; ctx.shadowColor=wc; ctx.shadowBlur=w.col?8:4;
+      ctx.fillRect(w.x,w.y,5,6);
+    }
+    ctx.shadowBlur=0;
+
+    // Neon sign strip
+    if(b.hasNeon&&b.w>10){
+      const sx=b.x+1,sy=b.y+Math.min(b.h*.12,30),sw=b.w-2,sh=4;
+      const alpha=.55+.45*Math.sin(frameCount*.08+(b.x*.1));
+      ctx.globalAlpha=alpha;
+      ctx.fillStyle=b.neonCol; ctx.shadowColor=b.neonCol; ctx.shadowBlur=10;
+      ctx.fillRect(sx,sy,sw,sh);
+      ctx.globalAlpha=1; ctx.shadowBlur=0;
+    }
+
+    // Antenna spire
+    if(b.antennaH>0){
+      const ax=b.x+b.w/2;
+      ctx.strokeStyle='#555'; ctx.lineWidth=1.2; ctx.shadowBlur=0; ctx.setLineDash([]);
+      ctx.beginPath(); ctx.moveTo(ax,b.y); ctx.lineTo(ax,b.y-b.antennaH); ctx.stroke();
+      // blinking red light on tip
+      const blink=Math.sin(frameCount*.06+(b.x*.05))>.3;
+      ctx.fillStyle=blink?'#ff3300':'#550000'; ctx.shadowColor='#ff3300'; ctx.shadowBlur=blink?10:0;
+      ctx.beginPath(); ctx.arc(ax,b.y-b.antennaH,2.2,0,Math.PI*2); ctx.fill();
+      ctx.shadowBlur=0;
+    }
+  }
+  ctx.restore();
+}
+
+function drawRoad(){
+  const rg=ctx.createLinearGradient(ROAD_LEFT,0,ROAD_RIGHT,0);
+  rg.addColorStop(0,PALETTE.road1); rg.addColorStop(.5,PALETTE.road2); rg.addColorStop(1,PALETTE.road1);
+  ctx.fillStyle=rg; ctx.fillRect(ROAD_LEFT,0,ROAD_W,H);
+  // Asphalt texture
+  ctx.save(); ctx.globalAlpha=.035; ctx.fillStyle='#fff';
+  for(const p of roadParticles)ctx.fillRect(p.x,p.y,1,1);
+  ctx.restore();
+  neonLine(ROAD_LEFT,0,ROAD_LEFT,H,PALETTE.roadEdge,3,22);
+  neonLine(ROAD_RIGHT,0,ROAD_RIGHT,H,PALETTE.roadEdge,3,22);
+  ctx.save();
+  ctx.strokeStyle=PALETTE.laneLine; ctx.lineWidth=2;
+  ctx.shadowColor=PALETTE.laneLine; ctx.shadowBlur=12;
+  ctx.setLineDash([28,32]); ctx.lineDashOffset=-dashOffset;
+  for(let i=1;i<LANE_COUNT;i++){const lx=ROAD_LEFT+LANE_W*i;ctx.beginPath();ctx.moveTo(lx,0);ctx.lineTo(lx,H);ctx.stroke();}
+  ctx.restore();
+}
+
+// ─── Hız Efekti ──────────────────────────────────────────
+function drawSpeedEffect(){
+  const intensity=Math.max(0,Math.min(1,(speedMult-1.2)/1.6));
+  if(intensity<.01)return;
+
+  ctx.save();
+  // Yan hız çizgileri
+  const lineCol=speedMult>2.5?PALETTE.speedHi:speedMult>2?'#ff5500':PALETTE.speedLow;
+  for(const l of speedLines){
+    ctx.globalAlpha=l.alpha*intensity;
+    ctx.strokeStyle=lineCol; ctx.lineWidth=l.w;
+    ctx.shadowColor=lineCol; ctx.shadowBlur=7;
+    ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(l.x,l.y); ctx.lineTo(l.x,l.y+l.len); ctx.stroke();
+  }
+
+  // Kenar vignette parlaması
+  ctx.globalAlpha=.28*intensity;
+  const vigCol=speedMult>2.5?'#ff0000':'#ff5500';
+  const lgL=ctx.createLinearGradient(0,0,ROAD_LEFT+8,0);
+  lgL.addColorStop(0,vigCol); lgL.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=lgL; ctx.fillRect(0,0,ROAD_LEFT+8,H);
+  const lgR=ctx.createLinearGradient(ROAD_RIGHT-8,0,W,0);
+  lgR.addColorStop(0,'rgba(0,0,0,0)'); lgR.addColorStop(1,vigCol);
+  ctx.fillStyle=lgR; ctx.fillRect(ROAD_RIGHT-8,0,W-ROAD_RIGHT+8,H);
+
+  // Tünel / sıkıştırma efekti
+  ctx.globalAlpha=.1*intensity;
+  const tun=ctx.createRadialGradient(W/2,H*.65,40,W/2,H*.65,290);
+  tun.addColorStop(0,'rgba(0,0,0,0)'); tun.addColorStop(1,'rgba(0,0,0,1)');
+  ctx.fillStyle=tun; ctx.fillRect(0,0,W,H);
+
+  // Yol şeritlerini "streaking" yap — yarı saydam ek çizgiler
+  if(speedMult>1.8){
+    const stk=(speedMult-1.8)/1.2;
+    ctx.globalAlpha=.14*stk;
+    ctx.strokeStyle='#ffffff'; ctx.lineWidth=4; ctx.shadowBlur=0;
+    ctx.setLineDash([10,50]); ctx.lineDashOffset=-dashOffset*3;
+    for(let i=1;i<LANE_COUNT;i++){const lx=ROAD_LEFT+LANE_W*i;ctx.beginPath();ctx.moveTo(lx,0);ctx.lineTo(lx,H);ctx.stroke();}
+  }
+
+  // Chromatic aberration at max speed
+  if(speedMult>2.7){
+    const ca=(speedMult-2.7)/0.3;
+    ctx.globalAlpha=.06*ca;
+    ctx.fillStyle='#ff0000'; ctx.fillRect(-3,0,W,H);
+    ctx.fillStyle='#0000ff'; ctx.fillRect(3,0,W,H);
+    ctx.globalAlpha=.1*ca;
+    ctx.fillStyle='#00ffff';
+    const ch=ctx.createLinearGradient(0,0,0,H);
+    ch.addColorStop(0,'rgba(0,255,255,0.2)'); ch.addColorStop(.5,'rgba(0,0,0,0)'); ch.addColorStop(1,'rgba(255,0,255,0.2)');
+    ctx.fillStyle=ch; ctx.fillRect(0,0,W,H);
+  }
+  ctx.restore();
+}
+
+// ─── Yayalar ─────────────────────────────────────────────
+function drawPedestrians(){for(const p of pedestrians)drawPedestrian(p);}
+function drawPedestrian(p){
+  const {x,y,dir,walkFrame,color}=p;
+  const sw=Math.sin(walkFrame*.22)*.45;
+  ctx.save();
+  ctx.fillStyle='rgba(0,0,0,.28)'; ctx.beginPath(); ctx.ellipse(x,y+19,10,4,0,0,Math.PI*2); ctx.fill();
+  ctx.strokeStyle=darken(color,.3); ctx.lineWidth=4; ctx.lineCap='round'; ctx.setLineDash([]);
+  ctx.beginPath(); ctx.moveTo(x,y+4); ctx.lineTo(x+Math.sin(sw)*dir*10,y+18); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x,y+4); ctx.lineTo(x-Math.sin(sw)*dir*10,y+18); ctx.stroke();
+  ctx.fillStyle=color; ctx.shadowColor=color; ctx.shadowBlur=12;
+  rrect(x-7,y-10,14,16,4); ctx.fill();
+  ctx.strokeStyle=lighten(color,.2); ctx.lineWidth=3;
+  ctx.beginPath(); ctx.moveTo(x-5,y-6); ctx.lineTo(x-12,y+2+Math.sin(sw)*dir*6); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x+5,y-6); ctx.lineTo(x+12,y+2-Math.sin(sw)*dir*6); ctx.stroke();
+  ctx.fillStyle='#ffccaa'; ctx.shadowColor=color; ctx.shadowBlur=8;
+  ctx.beginPath(); ctx.arc(x,y-17,8,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#333'; ctx.beginPath(); ctx.arc(x+dir*3,y-18,2,0,Math.PI*2); ctx.fill();
+  ctx.globalAlpha=.6+.4*Math.abs(Math.sin(walkFrame*.15));
+  ctx.font='bold 14px Arial Black'; ctx.fillStyle='#ffee00'; ctx.shadowColor='#ffee00'; ctx.shadowBlur=10; ctx.textAlign='center';
+  ctx.fillText('!',x,y-32);
+  ctx.restore();
+}
+
+// ─── Yol Tehlikeleri ─────────────────────────────────────
+function drawHazards(){for(const h of hazards){if(h.type==='nail')drawNail(h.x,h.y,h.animFrame);else drawPothole(h.x,h.y,h.w,h.h);}}
+function drawNail(x,y,f){
+  ctx.save(); ctx.shadowColor='#ffdd00'; ctx.shadowBlur=14;
+  ctx.strokeStyle='#bbbbbb'; ctx.lineWidth=4; ctx.lineCap='round'; ctx.setLineDash([]);
+  ctx.beginPath(); ctx.moveTo(x-10,y+4); ctx.lineTo(x+10,y-4); ctx.stroke();
+  ctx.fillStyle='#dddddd'; ctx.shadowColor='#ffff88'; ctx.shadowBlur=10;
+  ctx.beginPath(); ctx.arc(x-10,y+4,5,0,Math.PI*2); ctx.fill();
+  ctx.globalAlpha=.5+.5*Math.sin(f*.4); ctx.fillStyle='#ffee00'; ctx.shadowColor='#ffee00'; ctx.shadowBlur=18;
+  ctx.beginPath(); ctx.arc(x+11,y-5,3.5,0,Math.PI*2); ctx.fill(); ctx.restore();
+}
+function drawPothole(x,y,w,h){
+  ctx.save();
+  ctx.strokeStyle='#553322'; ctx.lineWidth=2; ctx.shadowBlur=0; ctx.setLineDash([4,3]);
+  ctx.beginPath(); ctx.ellipse(x,y,w/2+5,h/2+4,0,0,Math.PI*2); ctx.stroke(); ctx.setLineDash([]);
+  const pg=ctx.createRadialGradient(x,y,2,x,y,w/2); pg.addColorStop(0,'#0a0500'); pg.addColorStop(1,'#2a1800');
+  ctx.fillStyle=pg; ctx.shadowColor='#000'; ctx.shadowBlur=8; ctx.beginPath(); ctx.ellipse(x,y,w/2,h/2,0,0,Math.PI*2); ctx.fill();
+  ctx.strokeStyle='#664422'; ctx.lineWidth=2; ctx.beginPath(); ctx.ellipse(x,y,w/2,h/2,0,0,Math.PI*2); ctx.stroke();
+  ctx.strokeStyle='#442211'; ctx.lineWidth=1;
+  for(let i=0;i<4;i++){const a=(i/4)*Math.PI*2+.4;ctx.beginPath();ctx.moveTo(x+Math.cos(a)*w/2,y+Math.sin(a)*h/2);ctx.lineTo(x+Math.cos(a)*(w/2+9),y+Math.sin(a)*(h/2+6));ctx.stroke();}
+  ctx.restore();
+}
+
+// ─── Üst Mesafe Çubuğu ───────────────────────────────────
+function drawTopDistBar(){
+  const bx=ROAD_LEFT, by=5, bw=ROAD_W, bh=20;
+  const pct=distLeft/TOTAL_DIST;
+  const traveled=1-pct;
+  const bC=pct>.5?'#00ff66':pct>.25?'#ffdd00':'#ff2244';
+  const pulse=(pct<.25&&Math.sin(frameCount*.3)>.0)?1:0.8;
+
+  ctx.save();
+
+  // Arkaplan
+  ctx.fillStyle='rgba(0,0,15,0.88)';
+  ctx.shadowColor=bC;ctx.shadowBlur=10;
+  rrect(bx,by,bw,bh,10);ctx.fill();
+
+  // Dolu kısım (ilerleme = gidilen mesafe)
+  if(traveled>0){
+    const fillG=ctx.createLinearGradient(bx,0,bx+bw*traveled,0);
+    fillG.addColorStop(0,darken(bC,.1));
+    fillG.addColorStop(1,bC);
+    ctx.fillStyle=fillG;ctx.shadowColor=bC;ctx.shadowBlur=16*pulse;
+    rrect(bx,by,bw*traveled,bh,10);ctx.fill();
+  }
+
+  // Kenar
+  ctx.strokeStyle=bC;ctx.lineWidth=1.5;ctx.shadowBlur=6;
+  rrect(bx,by,bw,bh,10);ctx.stroke();
+
+  // Polo ikonu (ilerleme noktasında)
+  const carIconX=bx+bw*traveled;
+  ctx.shadowBlur=0;
+  ctx.font='15px serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText('🚗',Math.max(bx+12,Math.min(bx+bw-12,carIconX)),by+bh/2);
+
+  // Okul ikonu (sağ uç)
+  ctx.fillText('🏫',bx+bw+14,by+bh/2);
+
+  // Mesafe yazısı (ortada)
+  ctx.font=`bold ${pct<.25?11:10}px Arial Black`;
+  ctx.fillStyle='#fff';ctx.shadowColor=bC;ctx.shadowBlur=pct<.25?10:4;
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText(`${Math.ceil(distLeft)} m`,bx+bw/2,by+bh/2);
+
+  ctx.restore();
+}
+
+// ─── HUD ─────────────────────────────────────────────────
+function drawHUD(){
+  const px=ROAD_LEFT,py=HUD_Y,pw=ROAD_W,ph=H-HUD_Y-2;
+  ctx.save(); ctx.fillStyle='rgba(0,2,18,.93)'; rrect(px,py,pw,ph,0); ctx.fill();
+  ctx.strokeStyle=PALETTE.hudLine; ctx.lineWidth=1.5; ctx.shadowColor=PALETTE.hudLine; ctx.shadowBlur=10; ctx.setLineDash([]);
+  ctx.beginPath(); ctx.moveTo(px,py); ctx.lineTo(px+pw,py); ctx.stroke(); ctx.restore();
+  const secs=Math.ceil(timeLeft/60),tR=timeLeft/TOTAL_TIME;
+  const tC=tR>.5?'#00ff55':tR>.22?'#ffdd00':'#ff2244';
+  const pulse=(tR<.22&&Math.sin(frameCount*.25)>0)?1.18:1;
+  ctx.save(); ctx.font=`bold ${Math.round(20*pulse)}px Arial Black`; ctx.fillStyle=tC; ctx.shadowColor=tC; ctx.shadowBlur=18; ctx.textAlign='right'; ctx.textBaseline='top'; ctx.fillText(`⏱ ${secs}s`,px+pw-8,py+7); ctx.restore();
+  ctx.save(); ctx.font='bold 11px Arial'; ctx.fillStyle=PALETTE.hudLine; ctx.shadowColor=PALETTE.hudLine; ctx.shadowBlur=6; ctx.textAlign='left'; ctx.textBaseline='top'; ctx.fillText(`Fındık Hoca: ${Math.ceil(distLeft)}m`,px+8,py+9); ctx.restore();
+  const bx=px+8,by2=py+32,bw=pw-16,bh=16,pct=distLeft/TOTAL_DIST;
+  const bC=pct>.5?'#00ff55':pct>.25?'#ffdd00':'#ff2244';
+  ctx.save(); ctx.fillStyle='rgba(255,255,255,.08)'; rrect(bx,by2,bw,bh,7); ctx.fill();
+  if(pct>0){ctx.fillStyle=bC;ctx.shadowColor=bC;ctx.shadowBlur=14;rrect(bx,by2,bw*pct,bh,7);ctx.fill();}
+  ctx.strokeStyle=bC;ctx.lineWidth=1.5;ctx.shadowBlur=6;rrect(bx,by2,bw,bh,7);ctx.stroke();ctx.restore();
+  ctx.save();ctx.font='16px serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('🏫',bx+bw+1,by2+bh/2);ctx.fillText('🚗',bx-1,by2+bh/2);ctx.restore();
+}
+
+// ─── Araç ve Oyuncu Çizimi ───────────────────────────────
+function drawObstacles(){
+  for(const o of obstacles){
+    const cr=o.crashTimer||0;
+    // Yanıp-sönme: CRASH_BLINK_START sonrası her 4 frame'de 1'ini atla
+    if(cr>CRASH_BLINK_START&&Math.floor(cr/4)%2===1)continue;
+    ctx.save();
+    if(cr>CRASH_BLINK_START)ctx.globalAlpha=0.55; // yanıp sönerken soluk
+    drawCar(o.x,o.y,o.w,o.h,o.color,o.glow,false,o.label);
+    ctx.restore();
+  }
+}
+function drawPlayer(){
+  const isHit=hitTimer>0;
+  const shake=(isHit&&hitTimer>55)?Math.sin(frameCount*3.5)*6:player.switching?Math.sin(frameCount*.9)*1.5:0;
+  drawPoloCar(player.x+shake,player.y,isHit);
+}
+
+// ─── VW Polo Hatchback üstten görünüm ────────────────────
+function drawPoloCar(cx,cy,isHit){
+  const cw=40,ch=78;
+  const x=cx-cw/2,y=cy-ch/2;
+  const col=isHit?'#ff3300':'#f2f2ee';
+  const glow=isHit?'#ff0000':'#99bbdd';
+
+  ctx.save();
+
+  // Gölge
+  ctx.fillStyle='rgba(0,0,0,0.32)';
+  ctx.beginPath();ctx.ellipse(cx+3,cy+6,cw/2+3,ch/2+3,0,0,Math.PI*2);ctx.fill();
+
+  // Kaporta (kapı panelleri dahil, hafif gri kenarlar)
+  const bodyG=ctx.createLinearGradient(x,y,x+cw,y);
+  bodyG.addColorStop(0,'#c8c8c4');
+  bodyG.addColorStop(0.18,col);
+  bodyG.addColorStop(0.82,col);
+  bodyG.addColorStop(1,'#c4c4c0');
+  ctx.fillStyle=bodyG;
+  ctx.shadowColor=glow;ctx.shadowBlur=isHit?28:14;
+  ctx.beginPath();
+  ctx.moveTo(x+8,y+2);
+  ctx.quadraticCurveTo(cx,y-3,x+cw-8,y+2);
+  ctx.lineTo(x+cw-3,y+ch*.32);
+  ctx.lineTo(x+cw-2,y+ch*.68);
+  ctx.quadraticCurveTo(x+cw-5,y+ch+1,cx+5,y+ch+1);
+  ctx.quadraticCurveTo(cx,y+ch+2,cx-5,y+ch+1);
+  ctx.quadraticCurveTo(x+5,y+ch+1,x+2,y+ch*.68);
+  ctx.lineTo(x+3,y+ch*.32);
+  ctx.closePath();
+  ctx.fill();
+  // kontur
+  ctx.strokeStyle=darken(col,.18);ctx.lineWidth=.8;ctx.shadowBlur=0;ctx.stroke();
+
+  // Çatı paneli (daha koyu)
+  const roofG=ctx.createLinearGradient(x,0,x+cw,0);
+  roofG.addColorStop(0,'rgba(140,140,135,.7)');roofG.addColorStop(.5,'rgba(200,200,195,.4)');roofG.addColorStop(1,'rgba(130,130,125,.7)');
+  ctx.fillStyle=roofG;
+  rrect(x+6,y+ch*.26,cw-12,ch*.48,3);ctx.fill();
+
+  // Ön cam (büyük, trapez)
+  ctx.fillStyle='rgba(100,175,255,0.62)';ctx.shadowColor='#88ccff';ctx.shadowBlur=5;
+  ctx.beginPath();
+  ctx.moveTo(x+10,y+ch*.08);ctx.lineTo(x+cw-10,y+ch*.08);
+  ctx.lineTo(x+cw-6,y+ch*.26);ctx.lineTo(x+6,y+ch*.26);
+  ctx.closePath();ctx.fill();
+  // orta direk çizgisi
+  ctx.strokeStyle='rgba(60,140,210,.4)';ctx.lineWidth=.7;
+  ctx.beginPath();ctx.moveTo(cx,y+ch*.09);ctx.lineTo(cx,y+ch*.26);ctx.stroke();
+
+  // Arka cam (hatchback — daha küçük)
+  ctx.fillStyle='rgba(70,130,190,0.5)';ctx.shadowColor='#5588aa';ctx.shadowBlur=3;
+  ctx.beginPath();
+  ctx.moveTo(x+11,y+ch*.72);ctx.lineTo(x+cw-11,y+ch*.72);
+  ctx.lineTo(x+cw-8,y+ch*.86);ctx.lineTo(x+8,y+ch*.86);
+  ctx.closePath();ctx.fill();
+
+  ctx.shadowBlur=0;
+
+  // VW rozeti (ön kaput üstü)
+  const vx=cx,vy=y+ch*.14;
+  ctx.fillStyle='#1a3d8a';ctx.shadowColor='#3366cc';ctx.shadowBlur=6;
+  ctx.beginPath();ctx.arc(vx,vy,5.5,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#ffffff';ctx.shadowBlur=0;
+  ctx.font='bold 5.5px Arial';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText('VW',vx,vy);
+
+  // Far (ön, oval sarı)
+  hl(x+4,y+ch*.02,11,6,'#fffaaa');hl(x+cw-15,y+ch*.02,11,6,'#fffaaa');
+  // Stop lambası (arka, kırmızı)
+  hl(x+4,y+ch*.9,11,5,'#ff2200');hl(x+cw-15,y+ch*.9,11,5,'#ff2200');
+
+  // Tekerlekler
+  wheel(x-4,y+ch*.12,8,15);wheel(x+cw-4,y+ch*.12,8,15);
+  wheel(x-4,y+ch*.70,8,15);wheel(x+cw-4,y+ch*.70,8,15);
+
+  // POLO yazısı — arabanın tam üstünde, araçla birlikte hareket eder
+  ctx.save();
+  ctx.font='bold 11px Arial Black';
+  ctx.fillStyle='#eeeeff';ctx.shadowColor='#5577aa';ctx.shadowBlur=8;
+  ctx.textAlign='center';ctx.textBaseline='bottom';
+  ctx.fillText('POLO',cx,y-3); // y = cy-ch/2, yani araç gövdesinin hemen üstü
+  ctx.restore();
+
+  ctx.restore();
+}
+function drawCrashTexts(){for(const t of crashTexts){ctx.save();ctx.globalAlpha=t.alpha;ctx.font='bold 30px Arial Black';ctx.textAlign='center';ctx.textBaseline='middle';ctx.shadowColor='#ff2200';ctx.shadowBlur=24;ctx.strokeStyle='#000';ctx.lineWidth=5;ctx.fillStyle='#ff2200';ctx.strokeText('ÇARPTIN!',t.x,t.y);ctx.fillText('ÇARPTIN!',t.x,t.y);ctx.restore();}}
+function drawHitFlash(){if(hitFlash<=0)return;ctx.save();ctx.globalAlpha=(hitFlash/22)*.5;ctx.fillStyle='#ff0000';ctx.fillRect(0,0,W,H);ctx.restore();}
+
+function drawCar(cx,cy,cw,ch,color,glowColor,isPlayer,label){
+  const x=cx-cw/2,y=cy-ch/2;
+  ctx.save(); ctx.shadowColor=glowColor; ctx.shadowBlur=isPlayer?28:22;
+  const grad=ctx.createLinearGradient(x,y,x+cw,y+ch);
+  grad.addColorStop(0,lighten(color,.35));grad.addColorStop(.5,color);grad.addColorStop(1,darken(color,.42));
+  ctx.fillStyle=grad; rrect(x,y,cw,ch,8); ctx.fill();
+  ctx.fillStyle=isPlayer?'rgba(0,230,255,0.52)':'rgba(200,240,255,0.42)'; ctx.shadowBlur=6;
+  rrect(x+5,y+ch*(isPlayer?.12:.08),cw-10,ch*.22,4); ctx.fill();
+  ctx.fillStyle='rgba(180,220,255,0.25)'; rrect(x+5,y+ch*(isPlayer?.62:.68),cw-10,ch*.14,4); ctx.fill();
+  ctx.restore();
+  if(isPlayer){hl(cx-cw/2+6,cy-ch/2+ch*.06,8,5,'#ffffaa');hl(cx+cw/2-14,cy-ch/2+ch*.06,8,5,'#ffffaa');hl(cx-cw/2+6,cy-ch/2+ch*.86,8,5,'#ff4422');hl(cx+cw/2-14,cy-ch/2+ch*.86,8,5,'#ff4422');}
+  else{hl(cx-cw/2+5,cy-ch/2+ch*.88,8,5,'#ffffaa');hl(cx+cw/2-13,cy-ch/2+ch*.88,8,5,'#ffffaa');hl(cx-cw/2+5,cy-ch/2+ch*.06,8,5,'#ff4422');hl(cx+cw/2-13,cy-ch/2+ch*.06,8,5,'#ff4422');}
+  wheel(cx-cw/2-3,cy-ch/2+ch*.18,7,12);wheel(cx+cw/2-4,cy-ch/2+ch*.18,7,12);
+  wheel(cx-cw/2-3,cy-ch/2+ch*.68,7,12);wheel(cx+cw/2-4,cy-ch/2+ch*.68,7,12);
+  if(isPlayer||label){ctx.save();ctx.font='bold '+(label==='TIR'?11:10)+'px Arial';ctx.fillStyle='#000';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(isPlayer?'SUDE':label,cx,cy+(isPlayer?8:0));ctx.restore();}
+}
+function hl(hx,hy,hw,hh,c){ctx.save();ctx.fillStyle=c;ctx.shadowColor=c;ctx.shadowBlur=16;ctx.beginPath();ctx.ellipse(hx+hw/2,hy+hh/2,hw/2,hh/2,0,0,Math.PI*2);ctx.fill();ctx.restore();}
+function wheel(wx,wy,ww,wh){ctx.save();ctx.fillStyle='#111';ctx.strokeStyle='#444';ctx.lineWidth=1;ctx.beginPath();ctx.roundRect(wx,wy,ww,wh,3);ctx.fill();ctx.stroke();ctx.restore();}
+
+// ─── Mini Oyun 1: Lastik ─────────────────────────────────
+function drawMiniGame(){
+  ctx.save();ctx.globalAlpha=.74;ctx.fillStyle='#000';ctx.fillRect(0,0,W,H);ctx.restore();
+  const bx=60,by=155,bw=280,bh=300;
+  ctx.save();ctx.fillStyle='rgba(5,0,20,.97)';ctx.shadowColor='#ff6600';ctx.shadowBlur=38;rrect(bx,by,bw,bh,16);ctx.fill();ctx.strokeStyle='#ff6600';ctx.lineWidth=2.5;ctx.shadowBlur=20;rrect(bx,by,bw,bh,16);ctx.stroke();ctx.restore();
+  ctx.save();ctx.font='bold 16px Arial Black';ctx.fillStyle='#ff6600';ctx.shadowColor='#ff6600';ctx.shadowBlur=14;ctx.textAlign='center';ctx.textBaseline='top';ctx.fillText('💥 LASTİK PATLADI! 💥',bx+bw/2,by+16);ctx.restore();
+  const progress=miniGame.presses/miniGame.target;
+  drawTireGraphic(bx+bw/2,by+108,44,progress);
+  const shake=miniGame.shakeTimer>0?Math.sin(miniGame.shakeTimer*2.2)*5:0;
+  ctx.save();ctx.font='bold 34px Arial Black';ctx.textAlign='center';ctx.textBaseline='middle';ctx.shadowColor='#ffcc00';ctx.shadowBlur=18;ctx.fillStyle='#fff';ctx.fillText(`${miniGame.presses} / ${miniGame.target}`,bx+bw/2+shake,by+185);ctx.restore();
+  const bX=bx+22,bY=by+210,bW=bw-44,bH=18;
+  ctx.save();ctx.fillStyle='rgba(255,255,255,.09)';rrect(bX,bY,bW,bH,9);ctx.fill();
+  if(progress>0){ctx.fillStyle=progress>.85?'#00ff55':'#ff6600';ctx.shadowColor=progress>.85?'#00ff55':'#ff6600';ctx.shadowBlur=14;rrect(bX,bY,bW*progress,bH,9);ctx.fill();}
+  ctx.strokeStyle='#ff6600';ctx.lineWidth=1.5;ctx.shadowBlur=6;rrect(bX,bY,bW,bH,9);ctx.stroke();ctx.restore();
+  ctx.save();const b2=.5+.5*Math.sin(frameCount*.18);ctx.globalAlpha=.6+.4*b2;ctx.font='bold 13px Arial Black';ctx.fillStyle='#ffcc00';ctx.shadowColor='#ffcc00';ctx.shadowBlur=10;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('[ BOŞLUK ] tuşuna bas!',bx+bw/2,by+250);ctx.restore();
+  const secs2=Math.ceil(timeLeft/60),tR=timeLeft/TOTAL_TIME;
+  const tC=tR>.5?'#00ff55':tR>.22?'#ffdd00':'#ff2244';
+  ctx.save();ctx.font='bold 13px Arial';ctx.fillStyle=tC;ctx.shadowColor=tC;ctx.shadowBlur=10;ctx.textAlign='center';ctx.textBaseline='bottom';ctx.fillText(`⏱ Süre akmaya devam ediyor: ${secs2}s`,bx+bw/2,by+bh-10);ctx.restore();
+}
+function drawTireGraphic(cx,cy,r,progress){
+  ctx.save();ctx.setLineDash([]);
+  ctx.strokeStyle='#333';ctx.lineWidth=14;ctx.shadowBlur=0;ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.stroke();
+  const fs=Math.PI*.55*(1-progress);
+  if(fs>.05){ctx.strokeStyle='#ff5500';ctx.lineWidth=16;ctx.shadowColor='#ff5500';ctx.shadowBlur=14;ctx.beginPath();ctx.arc(cx,cy,r*.84,Math.PI/2-fs,Math.PI/2+fs);ctx.stroke();}
+  const jC=progress>.8?'#00ff55':'#888';ctx.strokeStyle=jC;ctx.lineWidth=4;ctx.shadowColor=progress>.8?'#00ff55':'transparent';ctx.shadowBlur=progress>.8?14:0;ctx.beginPath();ctx.arc(cx,cy,r*.5,0,Math.PI*2);ctx.stroke();
+  if(progress>0){const fa=Math.PI*2*progress;ctx.strokeStyle=progress>.8?'#00ff55':'#ffaa00';ctx.shadowColor=progress>.8?'#00ff55':'#ffaa00';ctx.shadowBlur=14;ctx.lineWidth=5;ctx.beginPath();ctx.arc(cx,cy,r,-Math.PI/2,-Math.PI/2+fa);ctx.stroke();}
+  ctx.fillStyle='#aaa';ctx.shadowBlur=0;ctx.beginPath();ctx.arc(cx,cy,5,0,Math.PI*2);ctx.fill();ctx.restore();
+}
+
+// ─── Sigara Uyarısı Pop-up ────────────────────────────────
+function drawSigaraWarn(){
+  // Yarı saydam arkaplan
+  ctx.save();ctx.globalAlpha=.78;ctx.fillStyle='#000';ctx.fillRect(0,0,W,H);ctx.restore();
+
+  const bx=40,by=190,bw=320,bh=265;
+
+  // Kutu gövdesi
+  ctx.save();
+  ctx.fillStyle='rgba(12,4,0,.97)';
+  ctx.shadowColor='#ff6600';ctx.shadowBlur=48;
+  rrect(bx,by,bw,bh,18);ctx.fill();
+  ctx.strokeStyle='#ff6600';ctx.lineWidth=2.5;ctx.shadowBlur=24;
+  rrect(bx,by,bw,bh,18);ctx.stroke();
+  ctx.restore();
+
+  // Başlık
+  ctx.save();
+  ctx.font='bold 22px Arial Black';ctx.textAlign='center';ctx.textBaseline='top';
+  ctx.fillStyle='#ffcc00';ctx.shadowColor='#ff8800';ctx.shadowBlur=18;
+  ctx.fillText('🚬 AFERİN! 🚬',bx+bw/2,by+18);
+  ctx.restore();
+
+  // Ayırıcı çizgi
+  ctx.save();ctx.strokeStyle='rgba(255,100,0,.35)';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(bx+20,by+58);ctx.lineTo(bx+bw-20,by+58);ctx.stroke();
+  ctx.restore();
+
+  // Mesaj satırları
+  const lines=['Sigara ile koltuğu yaktın!','Ders bitsin,','baban kemer ile bekliyor!'];
+  ctx.save();ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillStyle='#ffeecc';ctx.shadowColor='#ff6600';ctx.shadowBlur=6;
+  lines.forEach((line,i)=>{
+    ctx.font=i===0?'bold 15px Arial Black':'bold 14px Arial Black';
+    ctx.fillText(line,bx+bw/2,by+82+i*30);
+  });
+  ctx.restore();
+
+  // OK butonu
+  const btnW=160,btnH=44,btnX=bx+bw/2-btnW/2,btnY=by+bh-66;
+  sigaraWarn.btnRect={x:btnX,y:btnY,w:btnW,h:btnH};
+  const pulse=.9+.1*Math.sin(frameCount*.15);
+  ctx.save();
+  const bg=ctx.createLinearGradient(btnX,btnY,btnX+btnW,btnY+btnH);
+  bg.addColorStop(0,'#ff6600');bg.addColorStop(1,'#ff0066');
+  ctx.fillStyle=bg;ctx.shadowColor='#ff4400';ctx.shadowBlur=20*pulse;
+  rrect(btnX,btnY,btnW,btnH,22);ctx.fill();
+  ctx.strokeStyle='rgba(255,200,0,.5)';ctx.lineWidth=1.5;ctx.shadowBlur=0;
+  rrect(btnX,btnY,btnW,btnH,22);ctx.stroke();
+  ctx.font='bold 16px Arial Black';ctx.fillStyle='#000';ctx.shadowBlur=0;
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText('✓  TAMAM, DEVAM ET',btnX+btnW/2,btnY+btnH/2);
+  ctx.restore();
+
+  // Alt not
+  ctx.save();ctx.font='10px Arial';ctx.fillStyle='rgba(180,120,80,.7)';
+  ctx.textAlign='center';ctx.textBaseline='bottom';
+  ctx.fillText('Herhangi bir tuşa veya butona bas',bx+bw/2,by+bh-8);
+  ctx.restore();
+}
+
+// ─── Mini Oyun 2: Özür (kara mizah) ──────────────────────
+const WRONG_REACTIONS=['😂 YA BU NE ÖZÜR?!','🤦 AYIP, AYIP...','💀 YANLIŞ! CEZA GELİYOR','😤 SUDE HOCA UTANIYOR','🚨 YANLIŞ ŞIK! -5 SANİYE'];
+function drawApologyQuiz(){
+  ctx.save();ctx.globalAlpha=.78;ctx.fillStyle='#000';ctx.fillRect(0,0,W,H);ctx.restore();
+  const bx=44,by=105,bw=312,bh=430;
+  ctx.save();ctx.fillStyle='rgba(0,4,22,.97)';ctx.shadowColor='#00ccff';ctx.shadowBlur=44;rrect(bx,by,bw,bh,18);ctx.fill();ctx.strokeStyle='#00ccff';ctx.lineWidth=2.5;ctx.shadowBlur=22;rrect(bx,by,bw,bh,18);ctx.stroke();ctx.restore();
+
+  ctx.save();ctx.font='bold 15px Arial Black';ctx.textAlign='center';ctx.textBaseline='top';ctx.fillStyle='#ff4466';ctx.shadowColor='#ff4466';ctx.shadowBlur=14;ctx.fillText('🚶 FINDIK HOCA BİRİNE ÇARPTI!',bx+bw/2,by+14);
+  ctx.font='bold 13px Arial Black';ctx.fillStyle='#ffcc00';ctx.shadowColor='#ffcc00';ctx.shadowBlur=10;ctx.fillText('Doğru İngilizce özrü seç! 🗣',bx+bw/2,by+38);ctx.restore();
+
+  drawQuizPed(bx+bw/2,by+105);
+  ctx.save();ctx.font='11px Arial';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle='#778899';ctx.fillText('(Diğerleri YANLIŞ cevap — ceza yersin!)',bx+bw/2,by+158);ctx.restore();
+
+  quizBtnRects=[];
+  const bH=50,bG=8;let bY=by+172;
+  for(let i=0;i<3;i++){
+    const opt=apologyQuiz.options[i];
+    const isSel=apologyQuiz.selectedIdx===i;
+    const isRes=apologyQuiz.resultTimer>0&&isSel;
+    const isWrongRes=isRes&&!apologyQuiz.resultOk;
+    let fill='rgba(0,16,55,.9)',border='#4488ff',lbl='#cceeff';
+    if(isRes){fill=apologyQuiz.resultOk?'rgba(0,55,20,.95)':'rgba(60,5,10,.97)';border=apologyQuiz.resultOk?'#00ff55':'#ff2244';lbl=border;}
+    ctx.save();
+    if(isWrongRes){const shk=Math.sin(frameCount*1.8)*3;ctx.translate(shk,0);}
+    ctx.fillStyle=fill;ctx.shadowColor=border;ctx.shadowBlur=14;rrect(bx+12,bY,bw-24,bH,10);ctx.fill();
+    ctx.strokeStyle=border;ctx.lineWidth=2;ctx.shadowBlur=8;rrect(bx+12,bY,bw-24,bH,10);ctx.stroke();
+    ctx.fillStyle=border;ctx.shadowBlur=0;ctx.beginPath();ctx.arc(bx+27,bY+bH/2,11,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#000';ctx.font='bold 12px Arial Black';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(i+1,bx+27,bY+bH/2);
+    ctx.fillStyle=lbl;ctx.font='12px Arial';ctx.textAlign='left';ctx.textBaseline='middle';ctx.shadowColor=border;ctx.shadowBlur=4;
+    wrapText(ctx,opt.text,bx+46,bY+bH/2,bw-66,14);
+    if(isRes){
+      const icon=apologyQuiz.resultOk?'✓':'✗';
+      ctx.font='bold 20px Arial';ctx.textAlign='right';ctx.textBaseline='middle';ctx.fillStyle=apologyQuiz.resultOk?'#00ff55':'#ff2244';
+      ctx.fillText(icon,bx+bw-14,bY+bH/2);
+    }
+    quizBtnRects.push({x:bx+12,y:bY,w:bw-24,h:bH});
+    ctx.restore();bY+=bH+bG;
+  }
+  // Yanlış seçildiyse alay tepkisi
+  if(apologyQuiz.penaltyText>0){
+    const a=Math.min(1,apologyQuiz.penaltyText/25);
+    const reaction=WRONG_REACTIONS[Math.floor((Date.now()/800)%WRONG_REACTIONS.length)];
+    ctx.save();ctx.globalAlpha=a;
+    ctx.font='bold 15px Arial Black';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillStyle='#ff2244';ctx.shadowColor='#ff2244';ctx.shadowBlur=22;
+    ctx.fillText(reaction,bx+bw/2,bY+10);
+    ctx.font='bold 12px Arial';ctx.fillStyle='#ff8844';ctx.shadowBlur=8;
+    ctx.fillText(`-${PENALTY_SECS} SANİYE CEZA!`,bx+bw/2,bY+30);
+    ctx.restore();
+  }
+  const secs3=Math.ceil(timeLeft/60),tR=timeLeft/TOTAL_TIME;
+  const tC=tR>.5?'#00ff55':tR>.22?'#ffdd00':'#ff2244';
+  ctx.save();ctx.font='bold 11px Arial';ctx.fillStyle=tC;ctx.shadowColor=tC;ctx.shadowBlur=10;ctx.textAlign='center';ctx.textBaseline='bottom';ctx.fillText(`⏱ Süre akmaya devam ediyor: ${secs3}s`,bx+bw/2,by+bh-8);ctx.restore();
+}
+function drawQuizPed(cx,cy){
+  ctx.save();
+  ctx.strokeStyle='#ff9966';ctx.lineWidth=4;ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(cx,cy+4);ctx.lineTo(cx-10,cy+20);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(cx,cy+4);ctx.lineTo(cx+10,cy+20);ctx.stroke();
+  ctx.fillStyle='#ff6633';ctx.shadowColor='#ff6633';ctx.shadowBlur=12;rrect(cx-8,cy-12,16,18,4);ctx.fill();
+  ctx.strokeStyle='#ff9966';ctx.beginPath();ctx.moveTo(cx-6,cy-6);ctx.lineTo(cx-18,cy-18);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(cx+6,cy-6);ctx.lineTo(cx+18,cy-18);ctx.stroke();
+  ctx.fillStyle='#ffccaa';ctx.shadowColor='#ff6633';ctx.shadowBlur=8;ctx.beginPath();ctx.arc(cx,cy-20,9,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#333';ctx.beginPath();ctx.arc(cx-3,cy-21,2,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.arc(cx+3,cy-21,2,0,Math.PI*2);ctx.fill();
+  ctx.strokeStyle='#333';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(cx,cy-18,3,0,Math.PI*2);ctx.stroke();
+  ctx.font='18px serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.shadowBlur=0;ctx.globalAlpha=.8+.2*Math.sin(frameCount*.2);ctx.fillText('😵',cx,cy-38);
+  ctx.restore();
+}
+function wrapText(c,text,x,y,maxW,lineH){const ws=text.split(' ');let line='',ty=y-(text.length>20?lineH/2:0);for(let n=0;n<ws.length;n++){const t=line+ws[n]+' ';if(c.measureText(t).width>maxW&&n>0){c.fillText(line,x,ty);line=ws[n]+' ';ty+=lineH;}else line=t;}c.fillText(line,x,ty);}
+
+// ─── Yardımcı ─────────────────────────────────────────────
+function neonLine(x1,y1,x2,y2,color,lw,blur){ctx.save();ctx.strokeStyle=color;ctx.lineWidth=lw;ctx.shadowColor=color;ctx.shadowBlur=blur;ctx.setLineDash([]);ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();ctx.restore();}
+function rrect(x,y,w,h,r){ctx.beginPath();ctx.roundRect(x,y,w,h,r);}
+function lerp(a,b,t){return a+(b-a)*t;}
+function easeInOut(t){return t<.5?2*t*t:-1+(4-2*t)*t;}
+function collides(a,b){const m=6;return Math.abs(a.x-b.x)<(a.w/2+b.w/2-m)&&Math.abs(a.y-b.y)<(a.h/2+b.h/2-m);}
+function collidesHazard(a,h){return Math.abs(a.x-h.x)<(a.w/2+h.w/2-8)&&Math.abs(a.y-h.y)<(a.h/2+h.h/2+6);}
+function collidesPed(a,p){return Math.abs(a.x-p.x)<(a.w/2+p.w/2-4)&&Math.abs(a.y-p.y)<(a.h/2+p.h/2+4);}
+function lighten(hex,amt){return adjustColor(hex,amt);}
+function darken(hex,amt){return adjustColor(hex,-amt);}
+function adjustColor(hex,amt){let c=hex.replace('#','');if(c.length===3)c=c.split('').map(x=>x+x).join('');let r=parseInt(c.slice(0,2),16),g=parseInt(c.slice(2,4),16),b=parseInt(c.slice(4,6),16);r=Math.min(255,Math.max(0,Math.round(r+255*amt)));g=Math.min(255,Math.max(0,Math.round(g+255*amt)));b=Math.min(255,Math.max(0,Math.round(b+255*amt)));return '#'+[r,g,b].map(x=>x.toString(16).padStart(2,'0')).join('');}
+</script>
+</body>
+</html>
